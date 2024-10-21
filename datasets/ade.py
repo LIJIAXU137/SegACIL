@@ -211,7 +211,7 @@ class ADESegmentation(data.Dataset):
         self.task=opts.task
         self.overlap=opts.overlap
         self.unknown=opts.unknown
-        
+        self.setting = opts.setting
         self.image_set = image_set
         self.transform = transform
         
@@ -250,7 +250,7 @@ class ADESegmentation(data.Dataset):
                 file_names = file_names * 2
                 
         else:
-            file_names = get_dataset_list('ade', self.task, cil_step, image_set, self.overlap)
+            file_names = get_dataset_list('ade', self.task, cil_step, image_set,self.setting)
 
         self.images = [os.path.join(image_dir, x + ".jpg") for x in file_names]
         self.masks = [os.path.join(mask_dir, x + ".png") for x in file_names]
@@ -294,7 +294,10 @@ class ADESegmentation(data.Dataset):
     def gt_label_mapping(self, gt):
         gt = np.array(gt, dtype=np.uint8)
         if self.image_set != 'test':
-            gt = np.where(np.isin(gt, self.target_cls), gt, 0)
+            if self.setting == 'sequential':
+                pass
+            else:
+                gt = np.where(np.isin(gt, self.target_cls), gt, 0)        
         gt = self.ordering_map[gt]
         gt = Image.fromarray(gt)
         

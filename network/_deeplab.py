@@ -83,9 +83,9 @@ class DeepLabHead(nn.Module):
                         nn.Conv2d(256, 256, 3, padding=1, bias=False),
                         nn.BatchNorm2d(256),
                         nn.ReLU(inplace=True),)
-        self.head = nn.ModuleList([
-            nn.Conv2d(256, c, 1) for c in num_classes
-        ])
+        self.head=nn.Sequential(
+            nn.Linear(256, sum(num_classes)),
+        )
         # self.head = nn.ModuleList(
         #     [
         #          nn.Sequential(
@@ -102,10 +102,18 @@ class DeepLabHead(nn.Module):
         back_out = feature['out']
         feature = self.aspp(back_out)
         
-        feature = self.head_pre(feature)
-        heads = [h(feature) for h in self.head]
-        heads = torch.cat(heads, dim=1)
+       # 经过预处理的卷积层
+        feature = self.head_pre(feature)  # 形状为 (B, 256, H, W)
         
+        # 对每个像素点应用 MLP
+        B, C, H, W = feature.shape
+        feature = feature.view(B, C, -1).permute(0, 2, 1)  # (B, H * W, C)
+        
+        # 逐像素通过 MLP (head)
+        feature = self.head(feature)  # (B, H * W, num_classes)
+        
+        # 将特征还原回原始的空间形状
+        heads = feature.permute(0, 2, 1).view(B, -1, H, W)  # (B, num_classes, H, W)
         return heads, {
             "feature" : feature, 
             "back_out" : back_out

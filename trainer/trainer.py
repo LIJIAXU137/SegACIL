@@ -27,6 +27,10 @@ import matplotlib
 import matplotlib.pyplot as plt
 import json
 
+from utils.scheduler import build_scheduler
+from utils.loss import build_criterion
+from utils.logger import Logger
+import torch.nn.functional as F
 
 class Trainer(object):
     def __init__(self, opts, device) -> None:
@@ -158,7 +162,7 @@ class Trainer(object):
                                     nesterov=True)
         
         if self.local_rank == 0:
-            print("----------- trainable parameters --------------")
+            # print("----------- trainable parameters --------------")
             for name, param in self.model.named_parameters():
                 if param.requires_grad:
                     print(name, param.shape)
@@ -199,8 +203,7 @@ class Trainer(object):
                 
     def train(self):
         scaler = torch.cuda.amp.GradScaler(enabled=self.amp)
-        # save_ckpt(self.ckpt_str % (self.model_name, self.dataset, self.task, self.curr_step), self.model, self.optimizer, self.best_score)
-
+ 
         # =====  Train  =====
         for epoch in range(self.train_epoch):
             self.model.module.train()
@@ -314,6 +317,7 @@ class Trainer(object):
                 self.aux_loss_4.update(bga_ce_loss.item())
             else:
                 outputs = F.interpolate(outputs, labels.shape[-2:], mode='bilinear', align_corners=False)
+         
                 loss = std_loss = self.criterion(outputs, labels)
             
 

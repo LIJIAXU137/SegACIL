@@ -1,9 +1,9 @@
 MODEL=deeplabv3bga_resnet101
-DATA_ROOT=/data/****/VOC2012
+DATA_ROOT=/data/yt/BARM/data_root/VOC2012
 DATASET=voc
 TASK=15-1
 EPOCH=50
-BATCH=16
+BATCH=2
 LOSS=bce_loss
 LR=0.001
 THRESH=0.7

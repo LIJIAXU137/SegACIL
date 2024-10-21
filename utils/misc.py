@@ -157,14 +157,16 @@ def load_parallal_model(model, state_dict_):
     for key in state_dict:
         if key in model_state_dict:
             if state_dict[key].shape != model_state_dict[key].shape:
-                print('Skip loading parameter {}, required shape{}, loaded shape{}.'.format(
-                    key, model_state_dict[key].shape, state_dict[key].shape))
-                state_dict[key] = model_state_dict[key]
+                # print('Skip loading parameter {}, required shape{}, loaded shape{}.'.format(
+                #     key, model_state_dict[key].shape, state_dict[key].shape))
+                # state_dict[key] = model_state_dict[key]
+                pass
         else:
-            print('Drop parameter {}.'.format(key))
+            # print('Drop parameter {}.'.format(key))
+            pass
     for key in model_state_dict:
         if key not in state_dict:
-            print('No param {}.'.format(key))
+            # print('No param {}.'.format(key))
             state_dict[key] = model_state_dict[key]
     model.load_state_dict(state_dict, strict=False)
 

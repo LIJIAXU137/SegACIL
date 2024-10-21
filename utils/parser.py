@@ -31,16 +31,18 @@ def get_argparser():
                         help='crop validation (default: False)')
     parser.add_argument("--batch_size", type=int, default=32,
                         help='batch size (default: 16)')
-    parser.add_argument("--val_batch_size", type=int, default=4,
+    parser.add_argument("--val_batch_size", type=int, default=2,
                         help='batch size for validation (default: 4)')
     parser.add_argument("--crop_size", type=int, default=513)
     
     parser.add_argument("--ckpt", default=None, type=str,
                         help="restore from checkpoint")
+    parser.add_argument('--unknown', type=int, default=0, help='unknown 属性的默认值')
+
 
     parser.add_argument("--loss_type", type=str, default='bce_loss',
                         choices=['ce_loss', 'focal_loss', 'bce_loss'], help="loss type")
-    parser.add_argument("--gpu_id", type=str, default='0',
+    parser.add_argument("--gpu_id", type=str, default='1',
                         help="GPU ID")
     parser.add_argument("--weight_decay", type=float, default=1e-4,
                         help='weight decay (default: 1e-4)')
@@ -59,8 +61,16 @@ def get_argparser():
     parser.add_argument("--task", type=str, default='15-1', help="cil task")
     parser.add_argument("--curr_step", type=int, default=0)
     parser.add_argument("--overlap", action='store_true', help="overlap setup (True), disjoint setup (False)")
+    parser.add_argument("--setting", type=str, default='overlap', choices=['sequential', 'disjoint', 'overlap'],
+                        help="continual learning setting: 'sequential', 'disjoint', 'overlap'")
     parser.add_argument("--bn_freeze", action='store_true', help="enable batchnorm freezing")
-
+    parser.add_argument("--cil_step", type=int, default=0, help="cil step")
     parser.add_argument("--initial", action='store_true', help="initial training")
+
+    parser.add_argument("--buffer", type=int, default=16384, help="buffer size")
+    
+    parser.add_argument("--gamma", type=float, default=10, help="gamma value")
+    parser.add_argument("--method", type=str, default='None', help="method value")
+    # parser.add_argument("--mem_size", type=int, default=10, help="memory size")
 
     return parser.parse_args()

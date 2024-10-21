@@ -1,5 +1,5 @@
 MODEL=deeplabv3bga_resnet101
-DATA_ROOT=/data/****/VOC2012
+DATA_ROOT=/data/yt/BARM/data_root/VOC2012
 DATASET=voc
 TASK=15-1
 EPOCH=20

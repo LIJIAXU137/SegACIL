@@ -1,5 +1,5 @@
 MODEL=deeplabv3bga_resnet101
-DATA_ROOT=/data/****/ADEChallengeData2016/
+DATA_ROOT=/data/yt/BARM/data_root/ADEChallengeData2016
 DATASET=ade
 TASK=100-10
 EPOCH=100
@@ -24,7 +24,7 @@ result_dir=./checkpoints/${SUBPATH}/${TASK}/
 #     --curr_step ${CURR} --subpath ${SUBPATH} \
 #     --overlap
 
-CUDA_VISIBLE_DEVICES=8,9 \
+CUDA_VISIBLE_DEVICES=0,1,2,3 \
 torchrun --nproc_per_node=2 --master_port=34178 \
 train.py --data_root ${DATA_ROOT} --model ${MODEL} --crop_val --lr ${LR} \
     --batch_size ${BATCH} --train_epoch ${EPOCH}  --loss_type ${LOSS} \

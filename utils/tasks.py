@@ -258,7 +258,7 @@ def get_tasks(dataset, task, step=None):
     return tasks[task][step].copy()
 
 
-def get_dataset_list(dataset, task, step, mode, overlap=True):
+def get_dataset_list(dataset, task, step, mode,setting='overlap'):
     
     all_dataset = open(f"datasets/data/{dataset}/{mode}_cls.txt", "r").read().splitlines()
     
@@ -269,7 +269,7 @@ def get_dataset_list(dataset, task, step, mode, overlap=True):
     
     dataset_list = []
     
-    if overlap:
+    if setting=='overlap':
         fil = lambda c: any(x in target_cls for x in classes)
     else:
         target_cls_old = list(range(1, target_cls[0]))

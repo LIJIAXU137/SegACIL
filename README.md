@@ -1,3 +1,9 @@
+I only modified the VOC dataset script, and the ADE script was modified by referring to VOC. The sequential, overlap, and disjoint modes are specified through the "setting" parameter. If the GPU memory is sufficient, you can increase the batch size. trainacil first predicts and then upsamples, while trainacil2 upsamples first and then predicts (approximately increasing the computation and memory usage by 200 times).
+
+I'm currently running trainacil, and in the alignment step, I lose around 2 mIoU. If you have any questions, feel free to ask me. Also, the code is poorly written, and you can refactor it based on the original BARM repository or other sources. Please don't criticize too harshly!
+---Jiaxu Li
+
+
 <!-- # BARM - Official Pytorch Implementation (ECCV 2024) -->
 <div align="center">
 <h1>Official Pytorch Implementation of BARM: 
@@ -71,10 +77,11 @@ data_root/
 
 Run our scripts `run_init.sh` and `run.sh` for class-incremental segmentation on VOC 2012 dataset, or follow the instructions below.
 
-Initial step: 
+
+
 ```bash
-MODEL=deeplabv3bga_resnet101
-DATA_ROOT= # Your dataset root path
+MODEL=deeplabv3_resnet101
+DATA_ROOT=/data/yt/BARM/data_root/VOC2012
 DATASET=voc
 TASK=15-1
 EPOCH=50
@@ -84,37 +91,42 @@ LR=0.001
 THRESH=0.7
 SUBPATH=BARM
 CURR=0
-
-CUDA_VISIBLE_DEVICES=0 \
+METHOD=acil
+SETTING=sequential
+CUDA_VISIBLE_DEVICES=1 \
 python train.py --data_root ${DATA_ROOT} --model ${MODEL} --crop_val --lr ${LR} \
     --batch_size ${BATCH} --train_epoch ${EPOCH}  --loss_type ${LOSS} \
     --dataset ${DATASET} --task ${TASK} --lr_policy poly \
     --pseudo --pseudo_thresh ${THRESH}  --bn_freeze  --amp \
-    --curr_step ${CURR} --subpath ${SUBPATH} --initial --overlap 
+    --curr_step ${CURR} --subpath ${SUBPATH} --initial  --method ${METHOD} --setting ${SETTING}
 ```
 
 Incremental steps:
+
+
 ```bash
-MODEL=deeplabv3bga_resnet101
-DATA_ROOT= # Your dataset root path
+MODEL=deeplabv3_resnet101
+DATA_ROOT=/data/yt/BARM/data_root/VOC2012
 DATASET=voc
 TASK=15-1
 EPOCH=20
-BATCH=8
+BATCH=2
 LOSS=bce_loss
 LR=0.001
 THRESH=0.7
 SUBPATH=BARM
 CURR=1
+METHOD=acil
+SETTING=sequential
 
-CUDA_VISIBLE_DEVICES=0,1 \
-torchrun --nproc_per_node=2 --master_port=11451 \
-train.py --data_root ${DATA_ROOT} --model ${MODEL} --crop_val --lr ${LR} \
+CUDA_VISIBLE_DEVICES=1 \
+python train.py --data_root ${DATA_ROOT} --model ${MODEL} --crop_val --lr ${LR} \
     --batch_size ${BATCH} --train_epoch ${EPOCH}  --loss_type ${LOSS} \
     --dataset ${DATASET} --task ${TASK} --lr_policy poly \
     --pseudo --pseudo_thresh ${THRESH}  --bn_freeze  --amp\
-    --curr_step ${CURR} --subpath ${SUBPATH} --overlap
+    --curr_step ${CURR} --subpath ${SUBPATH}  --method ${METHOD} --setting ${SETTING}
 ```
+
 
 ### Class-Incremental Segmentation Segmentation on ADE20K
 
@@ -123,7 +135,7 @@ Run our scripts `run_init.sh` and `run.sh` for class-incremental segmentation on
 Initial step: 
 ```bash
 MODEL=deeplabv3bga_resnet101
-DATA_ROOT= # Your dataset root path
+DATA_ROOT=/data/yt/BARM/data_root/ADEChallengeData2016
 DATASET=ade
 TASK=100-5
 EPOCH=60
@@ -145,9 +157,9 @@ python train.py --data_root ${DATA_ROOT} --model ${MODEL} --crop_val --lr ${LR} 
 Incremental steps:
 ```bash
 MODEL=deeplabv3bga_resnet101
-DATA_ROOT= # Your dataset root path
+DATA_ROOT= /data/yt/BARM/data_root/ADEChallengeData2016
 DATASET=ade
-TASK=100-10
+TASK=100-5
 EPOCH=100
 BATCH=4
 LOSS=bce_loss
