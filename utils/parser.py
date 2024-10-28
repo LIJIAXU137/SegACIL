@@ -7,7 +7,7 @@ def get_argparser():
     # Datset Options
     parser.add_argument("--data_root", type=str, default='/data/DB/VOC2012',
                         help="path to Dataset")
-    parser.add_argument("--dataset", type=str, default='voc', choices=['voc', 'ade'], help='Name of dataset')
+    parser.add_argument("--dataset", type=str, default='voc', choices=['voc', 'ade','cityscapes_domain'], help='Name of dataset')
     parser.add_argument("--num_classes", type=int, default=None, help="num classes (default: None)")
 
     # Deeplab Options

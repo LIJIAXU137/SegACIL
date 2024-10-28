@@ -1,5 +1,5 @@
 from torch.utils import data
-from datasets import VOCSegmentation, ADESegmentation
+from datasets import VOCSegmentation, ADESegmentation, CityscapesSegmentationIncrementalDomain
 from utils import ext_transforms as et
 from torch.utils.data.distributed import DistributedSampler
 import torch
@@ -37,6 +37,8 @@ def get_dataset(opts):
         dataset = VOCSegmentation
     elif opts.dataset == 'ade':
         dataset = ADESegmentation
+    elif opts.dataset == 'cityscapes_domain':
+        dataset = CityscapesSegmentationIncrementalDomain
     else:
         raise NotImplementedError
         

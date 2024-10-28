@@ -242,6 +242,33 @@ tasks_ade = {
         },
 }
 
+tasks_cityscapes_domain = {
+    "offline": {0: list(range(21))},
+    "11-5":
+        {
+            0: list(range(11)),
+            1: [11, 12, 13, 14, 15],
+            2: [16, 17, 18, 19, 20],
+        },
+    "11-5":
+        {
+            0: list(range(11)),
+            1: [11, 12, 13, 14, 15],
+            2: [16, 17, 18, 19, 20],
+        },
+    "11-1":
+        {
+            0: list(range(11)),
+            1: [11], 2: [12], 3: [13], 4: [14], 5: [15],
+            6: [16], 7: [17], 8: [18], 9: [19], 10: [20]
+        },
+    "1-1":
+        {
+            i: [i] for i in range(21)
+        }
+}
+
+
 
 def get_tasks(dataset, task, step=None):
     
@@ -249,6 +276,8 @@ def get_tasks(dataset, task, step=None):
         tasks = tasks_voc
     elif dataset == 'ade':
         tasks = tasks_ade
+    elif dataset == 'cityscapes_domain':
+        tasks = tasks_cityscapes_domain
     else:
         NotImplementedError
         

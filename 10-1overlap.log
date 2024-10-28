@@ -1,0 +1,16 @@
+nohup: ignoring input
+Available GPUs: 1
+[11, 1]
+[1, 10, 1]
+==============================================
+  task : 10-1
+  step : 1
+  Device: cuda
+Namespace(amp=True, batch_size=2, bn_freeze=True, buffer=16384, cil_step=0, ckpt=None, crop_size=513, crop_val=True, curr_itrs=0, curr_step=1, data_root='/data/yt/BARM/data_root/VOC2012', dataset='voc', gamma=10, gpu_id='1', initial=False, local_rank=0, loss_type='bce_loss', lr=0.001, lr_policy='poly', method='acil', model='deeplabv3_resnet101', num_classes=[1, 10, 1], output_stride=16, overlap=False, print_interval=10, pseudo=True, pseudo_thresh=0.7, random_seed=1, separable_conv=False, setting='overlap', step_size=10000, subpath='BARM', target_cls=[[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [11]], task='10-1', test_only=False, train_epoch=20, unknown=0, val_batch_size=2, val_interval=100, weight_decay=0.0001)
+==============================================
+Category components: [1, 10, 1]
+checkpoints/BARM/10-1/overlap/step0/deeplabv3_resnet101_voc_10-1_step_0_overlap.pth
+Model restored from checkpoints/BARM/10-1/overlap/step0/deeplabv3_resnet101_voc_10-1_step_0_overlap.pth
+Dataset: voc, Train set: 528, Val set: 75, Test set: 1449
+... train epoch : 20 , iterations : 5280 , val_interval : 100
+Dataset: voc, Train set: 6139, Val set: 869, Test set: 1449
