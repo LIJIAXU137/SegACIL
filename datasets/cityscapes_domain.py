@@ -9,7 +9,7 @@ from PIL import Image
 from torch import distributed
 
 from .utils import Subset, group_images
-
+from utils.tasks import get_dataset_list, get_tasks
 
 # Converting the id to the train_id. Many objects have a train id at
 # 255 (unknown / ignored).
@@ -130,8 +130,10 @@ class CityscapesSegmentationDomain(data.Dataset):
         except Exception as e:
             raise Exception(f"Index: {index}, len: {len(self)}, message: {str(e)}")
 
+
         if self.transform is not None:
             img, target = self.transform(img, target)
+
 
         return img, target
 
@@ -139,55 +141,93 @@ class CityscapesSegmentationDomain(data.Dataset):
         return len(self.images)
 
 
-class CityscapesSegmentationIncrementalDomain(data.Dataset):
-    """Labels correspond to domains not classes in this case."""
-    def __init__(
-        self,
-        root,
-        train=True,
-        transform=None,
-        labels=None,
-        idxs_path=None,
-        masking=True,
-        overlap=True,
-        **kwargs
-    ):
-        full_data = CityscapesSegmentationDomain(root, train)
+# class CityscapesSegmentationIncrementalDomain(data.Dataset):
+#     """Labels correspond to domains not classes in this case."""
+#     def __init__(
+#         self,
+#         root,
+#         train=True,
+#         transform=None,
+#         labels=None,
+#         idxs_path=None,
+#         masking=True,
+#         overlap=True,
+#         **kwargs
+#     ):
+#         full_data = CityscapesSegmentationDomain(root, train)
 
-        # take index of images with at least one class in labels and all classes in labels+labels_old+[255]
-        if idxs_path is not None and os.path.exists(idxs_path):
-            idxs = np.load(idxs_path).tolist()
-        else:
+#         # take index of images with at least one class in labels and all classes in labels+labels_old+[255]
+#         if idxs_path is not None and os.path.exists(idxs_path):
+#             idxs = np.load(idxs_path).tolist()
+#         else:
+#             idxs = filter_images(full_data, labels)
+#             if idxs_path is not None and distributed.get_rank() == 0:
+#                 np.save(idxs_path, np.array(idxs, dtype=int))
+
+#         rnd = np.random.RandomState(1)
+#         rnd.shuffle(idxs)
+#         train_len = int(0.8 * len(idxs))
+#         if train:
+#             idxs = idxs[:train_len]
+#             print(f"{len(idxs)} images for train")
+#         else:
+#             idxs = idxs[train_len:]
+#             print(f"{len(idxs)} images for val")
+
+#         target_transform = tv.transforms.Lambda(
+#             lambda t: t.
+#             apply_(lambda x: id_to_trainid.get(x, 255))
+#         )
+#         # make the subset of the dataset
+#         self.dataset = Subset(full_data, idxs, transform, target_transform)
+
+#     def __getitem__(self, index):
+#         """
+#         Args:
+#             index (int): Index
+#         Returns:
+#             tuple: (image, target) where target is the image segmentation.
+#         """
+
+#         return self.dataset[index]
+
+#     def __len__(self):
+#         return len(self.dataset)
+
+#train的时候用labels test的时候用labels_cum
+class CityscapesSegmentationIncrementalDomain(data.Dataset):
+    def __init__(self, opts, image_set='train', transform=None, cil_step=0, mem_size=0):
+        root = os.path.expanduser(opts.data_root)
+        print("root", root)
+        train = image_set == 'train'
+        labels = get_tasks('cityscapes_domain', opts.task, cil_step)
+       
+        labels_cum = list(range(0, max(labels) + 1))
+        full_data = CityscapesSegmentationDomain(root, train)
+        if image_set == 'train':
             idxs = filter_images(full_data, labels)
-            if idxs_path is not None and distributed.get_rank() == 0:
-                np.save(idxs_path, np.array(idxs, dtype=int))
+        else:
+            idxs = filter_images(full_data, labels_cum)
+        
 
         rnd = np.random.RandomState(1)
         rnd.shuffle(idxs)
         train_len = int(0.8 * len(idxs))
         if train:
             idxs = idxs[:train_len]
-            print(f"{len(idxs)} images for train")
         else:
             idxs = idxs[train_len:]
-            print(f"{len(idxs)} images for val")
 
         target_transform = tv.transforms.Lambda(
-            lambda t: t.
-            apply_(lambda x: id_to_trainid.get(x, 255))
+            lambda t: t.apply_(lambda x: id_to_trainid.get(x, 255))
         )
-        # make the subset of the dataset
+        
         self.dataset = Subset(full_data, idxs, transform, target_transform)
 
     def __getitem__(self, index):
-        """
-        Args:
-            index (int): Index
-        Returns:
-            tuple: (image, target) where target is the image segmentation.
-        """
-
+      
         return self.dataset[index]
+
 
     def __len__(self):
         return len(self.dataset)

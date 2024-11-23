@@ -153,47 +153,50 @@ Run our scripts `run_init.sh` and `run.sh` for class-incremental segmentation on
 
 Initial step: 
 ```bash
-MODEL=deeplabv3bga_resnet101
+MODEL=deeplabv3_resnet101
 DATA_ROOT=/data/yt/BARM/data_root/ADEChallengeData2016
 DATASET=ade
 TASK=100-5
 EPOCH=60
 BATCH=8
 LOSS=bce_loss
-LR=0.001
+LR=0.01
 THRESH=0.7
 SUBPATH=BARM
 CURR=0
+METHOD=acil
+SETTING=overlap
 
 CUDA_VISIBLE_DEVICES=0 \
 python train.py --data_root ${DATA_ROOT} --model ${MODEL} --crop_val --lr ${LR} \
     --batch_size ${BATCH} --train_epoch ${EPOCH}  --loss_type ${LOSS} \
     --dataset ${DATASET} --task ${TASK} --lr_policy poly \
     --pseudo --pseudo_thresh ${THRESH}  --bn_freeze  --amp \
-    --curr_step ${CURR} --subpath ${SUBPATH} --initial --overlap 
+    --curr_step ${CURR} --subpath ${SUBPATH} --initial --method ${METHOD} --setting ${SETTING}
 ```
 
 Incremental steps:
 ```bash
-MODEL=deeplabv3bga_resnet101
+MODEL=deeplabv3_resnet101
 DATA_ROOT= /data/yt/BARM/data_root/ADEChallengeData2016
 DATASET=ade
 TASK=100-5
 EPOCH=100
 BATCH=4
 LOSS=bce_loss
-LR=0.01
+LR=0.001
 THRESH=0.7
 SUBPATH=BARM
 CURR=1
+METHOD=acil
+SETTING=overlap
+CUDA_VISIBLE_DEVICES=3 \
 
-CUDA_VISIBLE_DEVICES=0,1 \
-torchrun --nproc_per_node=2 --master_port=19198 \
-train.py --data_root ${DATA_ROOT} --model ${MODEL} --crop_val --lr ${LR} \
+python train.py --data_root ${DATA_ROOT} --model ${MODEL} --crop_val --lr ${LR} \
     --batch_size ${BATCH} --train_epoch ${EPOCH}  --loss_type ${LOSS} \
     --dataset ${DATASET} --task ${TASK} --lr_policy poly \
     --pseudo --pseudo_thresh ${THRESH}  --bn_freeze  --amp \
-    --curr_step ${CURR} --subpath ${SUBPATH} --overlap
+    --curr_step ${CURR} --subpath ${SUBPATH} --method ${METHOD} --setting ${SETTING}
 ```
 
 

@@ -11,7 +11,7 @@ import cv2
 from collections import Counter
 from torch.utils import data
 from utils import ext_transforms as et
-from metrics import StreamSegMetrics
+from metrics import StreamSegMetrics,StreamSegMetrics2
 from utils.Buffer import RandomBuffer, GaussianKernel
 from utils.AnalyticLinear import GeneralizedARM, RecursiveLinear
 import torch
@@ -107,16 +107,21 @@ class Traineracil(object):
         self.setting=opts.setting
         self.subpath = opts.subpath
         self.curr_step = opts.curr_step
-        
+        self.flag=False
         self.opts=opts
         self.curr_idx = [
             sum(len(get_tasks(opts.dataset, opts.task, step)) for step in range(opts.curr_step)), 
             sum(len(get_tasks(opts.dataset, opts.task, step)) for step in range(opts.curr_step+1))
         ]
-        
+        if self.dataset == 'cityscapes_domain':
+            #使得self.num_classes的长度为19,并且每个元素都是1
+            self.num_classes = [1] * 19
+            
         self.init_models()
         # Set up metrics
-        self.metrics = StreamSegMetrics(opts.num_classes, dataset=opts.dataset)
+        self.metrics = StreamSegMetrics(self.num_classes, dataset=opts.dataset)
+        if self.dataset == 'cityscapes_domain':
+            self.metrics = StreamSegMetrics2(self.num_classes )
         if self.setting=='sequential':
             scheme="sequential"
         elif self.setting=='disjoint':
@@ -255,17 +260,30 @@ class Traineracil(object):
         if self.curr_step == 0:
             for epoch in range(self.train_epoch):
                 self.model.train()
-                for seq, (images, labels, _) in enumerate(self.train_loader):
-                    images = images.to(self.device, dtype=torch.float32, non_blocking=True)
-                    labels = labels.to(self.device, dtype=torch.long, non_blocking=True)
+                if self.dataset == 'cityscapes_domain':
+                    for seq, (images, labels) in enumerate(self.train_loader):
+                        images = images.to(self.device, dtype=torch.float32, non_blocking=True)
+                        labels = labels.to(self.device, dtype=torch.long, non_blocking=True)
                     
-                    outputs, loss = self.train_episode(images, labels, scaler, epoch)
+                        outputs, loss = self.train_episode(images, labels, scaler, epoch)
+                        
+                        if self.local_rank==0 and seq % 10 == 0:
+                            print("[%s / step %d] Epoch %d, Itrs %d/%d, Loss=%4f, StdLoss=%.4f, A1=%.4f, A2=%.4f, A3=%.4f, A4=%.4f Time=%.2f , LR=%.8f" %
+                                (self.task, self.curr_step, epoch, seq, len(self.train_loader), 
+                                self.avg_loss.avg, self.avg_loss_std.avg, self.aux_loss_1.avg, self.aux_loss_2.avg, self.aux_loss_3.avg, self.aux_loss_4.avg, self.avg_time.avg*1000, self.optimizer.param_groups[0]['lr']))
+                            self.logger.write_loss(self.avg_loss.avg, epoch * len(self.train_loader) + seq + 1)
+                else :
+                    for seq, (images, labels, _) in enumerate(self.train_loader):
+                        images = images.to(self.device, dtype=torch.float32, non_blocking=True)
+                        labels = labels.to(self.device, dtype=torch.long, non_blocking=True)
                     
-                    if self.local_rank==0 and seq % 10 == 0:
-                        print("[%s / step %d] Epoch %d, Itrs %d/%d, Loss=%4f, StdLoss=%.4f, A1=%.4f, A2=%.4f, A3=%.4f, A4=%.4f Time=%.2f , LR=%.8f" %
-                            (self.task, self.curr_step, epoch, seq, len(self.train_loader), 
-                            self.avg_loss.avg, self.avg_loss_std.avg, self.aux_loss_1.avg, self.aux_loss_2.avg, self.aux_loss_3.avg, self.aux_loss_4.avg, self.avg_time.avg*1000, self.optimizer.param_groups[0]['lr']))
-                        self.logger.write_loss(self.avg_loss.avg, epoch * len(self.train_loader) + seq + 1)
+                        outputs, loss = self.train_episode(images, labels, scaler, epoch)
+                        
+                        if self.local_rank==0 and seq % 10 == 0:
+                            print("[%s / step %d] Epoch %d, Itrs %d/%d, Loss=%4f, StdLoss=%.4f, A1=%.4f, A2=%.4f, A3=%.4f, A4=%.4f Time=%.2f , LR=%.8f" %
+                                (self.task, self.curr_step, epoch, seq, len(self.train_loader), 
+                                self.avg_loss.avg, self.avg_loss_std.avg, self.aux_loss_1.avg, self.aux_loss_2.avg, self.aux_loss_3.avg, self.aux_loss_4.avg, self.avg_time.avg*1000, self.optimizer.param_groups[0]['lr']))
+                            self.logger.write_loss(self.avg_loss.avg, epoch * len(self.train_loader) + seq + 1)
 
                 if self.local_rank == 0 and (len(self.train_loader) > 100 or epoch % 5 ==4):
                     print("[Validation]")
@@ -295,19 +313,27 @@ class Traineracil(object):
             self.root_path0 = f"checkpoints/{self.subpath}/{self.task}/{self.scheme}/step0/"
             save_ckpt(self.root_path0+"final.pth", self.model, self.optimizer, self.best_score)
             self.do_evaluate3(mode='test')
+            self.model_prev=self.model
+            self.model_prev.eval()
+            self.flag=True
             ##CIL
             self.incremental_learning(self.train_loader)
    
 
         elif self.curr_step > 1:
             self.model=load_ckpt(self.ckpt)[0]
+            self.model_prev=self.model
+            self.model_prev.eval()
             self.incremental_learning(self.train_loader)
 
         if self.local_rank == 0 :
             save_ckpt(self.root_path+"final.pth", self.model, self.optimizer, self.best_score)
             print("... Training Done")
             if self.curr_step > 0:
-                self.do_evaluate2(mode='test')
+                if self.dataset=='cityscapes_domain':
+                    self.do_evaluate4(mode='test')
+                else:
+                    self.do_evaluate2(mode='test')
 
 
 
@@ -326,17 +352,17 @@ class Traineracil(object):
                 
             else:
                 # print("labels : ", labels.shape)
-                #打印labels的标签有哪些以及统计具体数量，比如说有多少个0，多少个1
-                # 统计每个标签的数量
+                # # 打印labels的标签有哪些以及统计具体数量，比如说有多少个0，多少个1
+                # # 统计每个标签的数量
                 # unique_labels, counts = torch.unique(labels, return_counts=True)
 
-                # 打印每个标签及其数量
+                # # 打印每个标签及其数量
                 # for label, count in zip(unique_labels, counts):
                 #     print(f"标签 {label} 的数量: {count}")
 
           
                 outputs = F.interpolate(outputs, labels.shape[-2:], mode='bilinear', align_corners=False)
-           
+
                 loss = std_loss = self.criterion(outputs, labels)
                 scaler.scale(loss).backward()
                 scaler.step(self.optimizer)
@@ -427,7 +453,9 @@ class Traineracil(object):
         class_iou = list(test_score['Class IoU'].values())
         class_acc = list(test_score['Class Acc'].values())
         first_cls = len(get_tasks(self.dataset, self.task, 0))
-
+        if self.dataset=='cityscapes_domain':
+            first_cls=19
+        
         print(f"...from 0 to {first_cls-1} : best/test_before_mIoU : %.6f" % np.mean(class_iou[:first_cls]))
         print(f"...from 0 to {first_cls-1} : best/test_before_acc : %.6f" % np.mean(class_acc[:first_cls]))
         test_score[f'0 to {first_cls-1} mIoU'] = np.mean(class_iou[:first_cls])
@@ -439,6 +467,32 @@ class Traineracil(object):
             f.write(json.dumps(test_score, indent=4))
             f.close()
 
+    def do_evaluate4(self, mode='val'):
+        print("[Testing Best Model]")
+        # best_ckpt = self.ckpt_str % (self.model_name, self.dataset, self.task, self.curr_step)
+        best_ckpt = self.root_path+"final.pth"
+        
+        self.model=load_ckpt(best_ckpt)[0]
+        self.model.eval()
+        
+        test_score = self.validate2(mode)
+        print(self.metrics.to_str(test_score))
+
+        class_iou = list(test_score['Class IoU'].values())
+        class_acc = list(test_score['Class Acc'].values())
+       
+        first_cls=19
+        print(f"...from 0 to {first_cls-1} : best/test_before_mIoU : %.6f" % np.mean(class_iou[:first_cls]))
+        print(f"...from 0 to {first_cls-1} : best/test_before_acc : %.6f" % np.mean(class_acc[:first_cls]))
+
+
+        test_score[f'0 to {first_cls-1} mIoU'] = np.mean(class_iou[:first_cls])
+        test_score[f'0 to {first_cls-1} mAcc'] = np.mean(class_acc[:first_cls])
+
+        # save results as json
+        with open(f"{self.root_path}/test_results.json", 'w') as f:
+            f.write(json.dumps(test_score, indent=4))
+            f.close()
 
 
     def validate2(self, mode='val'):
@@ -448,29 +502,48 @@ class Traineracil(object):
         self.model.eval()
 
         with torch.no_grad():
-            for i, (images, labels, _) in enumerate(tqdm(self.val_loader if mode=='val' else self.test_loader)):
-                
-                images = images.to(self.device, dtype=torch.float32, non_blocking=True)
-                labels = labels.to(self.device, dtype=torch.long, non_blocking=True)
-                
-                outputs= self.model(images)
-                # print("outputs.shape",outputs.shape)
+            if self.dataset == 'cityscapes_domain':
+                for i, (images, labels) in enumerate(tqdm(self.val_loader if mode=='val' else self.test_loader)):
+                    
+                    images = images.to(self.device, dtype=torch.float32, non_blocking=True)
+                    labels = labels.to(self.device, dtype=torch.long, non_blocking=True)
+                    
+                    outputs= self.model(images)
+                    # print("outputs.shape",outputs.shape)
 
-                if self.loss_type == 'bce_loss':
-                    outputs = torch.sigmoid(outputs)
-                else:
-                    outputs = torch.softmax(outputs, dim=1)
-                outputs=outputs.permute(0,3,1,2)
-                outputs = F.interpolate(outputs, labels.shape[-2:], mode='bilinear', align_corners=False)
+                    if self.loss_type == 'bce_loss':
+                        outputs = torch.sigmoid(outputs)
+                    else:
+                        outputs = torch.softmax(outputs, dim=1)
+                    outputs=outputs.permute(0,3,1,2)
+                    outputs = F.interpolate(outputs, labels.shape[-2:], mode='bilinear', align_corners=False)
 
-                preds = outputs.detach().max(dim=1)[1].cpu().numpy()
-                targets = labels.cpu().numpy()
+                    preds = outputs.detach().max(dim=1)[1].cpu().numpy()
+                    targets = labels.cpu().numpy()
+                    self.metrics.update(targets, preds)
+            else :
+                for i, (images, labels,_) in enumerate(tqdm(self.val_loader if mode=='val' else self.test_loader)):
+                    
+                    images = images.to(self.device, dtype=torch.float32, non_blocking=True)
+                    labels = labels.to(self.device, dtype=torch.long, non_blocking=True)
+                    
+                    outputs= self.model(images)
+                    # print("outputs.shape",outputs.shape)
+
+                    if self.loss_type == 'bce_loss':
+                        outputs = torch.sigmoid(outputs)
+                    else:
+                        outputs = torch.softmax(outputs, dim=1)
+                    outputs=outputs.permute(0,3,1,2)
+                    outputs = F.interpolate(outputs, labels.shape[-2:], mode='bilinear', align_corners=False)
+
+                    preds = outputs.detach().max(dim=1)[1].cpu().numpy()
+                    targets = labels.cpu().numpy()               
+
                 
 
                 
-
-                
-                self.metrics.update(targets, preds)
+                    self.metrics.update(targets, preds)
                     
             score = self.metrics.get_results()
         return score
@@ -484,24 +557,47 @@ class Traineracil(object):
         self.model.eval()
 
         with torch.no_grad():
-            for i, (images, labels, _) in enumerate(tqdm(self.val_loader if mode=='val' else self.test_loader)):
-                
-                images = images.to(self.device, dtype=torch.float32, non_blocking=True)
-                labels = labels.to(self.device, dtype=torch.long, non_blocking=True)
-                
-                outputs, _ = self.model(images)
-                
-                if self.loss_type == 'bce_loss':
-                    outputs = torch.sigmoid(outputs)
-                else:
-                    outputs = torch.softmax(outputs, dim=1)
-
-                outputs = F.interpolate(outputs, labels.shape[-2:], mode='bilinear', align_corners=False)
-                
-                preds = outputs.detach().max(dim=1)[1].cpu().numpy()
-                targets = labels.cpu().numpy()
-                self.metrics.update(targets, preds)
+            if self.dataset == 'cityscapes_domain':
+                for i, (images, labels) in enumerate(tqdm(self.val_loader if mode=='val' else self.test_loader)):
                     
+                    images = images.to(self.device, dtype=torch.float32, non_blocking=True)
+                    labels = labels.to(self.device, dtype=torch.long, non_blocking=True)
+                    
+                    outputs, _ = self.model(images)
+                    
+                    if self.loss_type == 'bce_loss':
+                        outputs = torch.sigmoid(outputs)
+                    else:
+                        outputs = torch.softmax(outputs, dim=1)
+
+                    outputs = F.interpolate(outputs, labels.shape[-2:], mode='bilinear', align_corners=False)
+                    
+                    preds = outputs.detach().max(dim=1)[1].cpu().numpy()
+                    targets = labels.cpu().numpy()
+
+
+
+
+                    self.metrics.update(targets, preds)
+            else :
+                for i, (images, labels, _) in enumerate(tqdm(self.val_loader if mode=='val' else self.test_loader)):
+                    
+                    images = images.to(self.device, dtype=torch.float32, non_blocking=True)
+                    labels = labels.to(self.device, dtype=torch.long, non_blocking=True)
+                    
+                    outputs, _ = self.model(images)
+                    
+                    if self.loss_type == 'bce_loss':
+                        outputs = torch.sigmoid(outputs)
+                    else:
+                        outputs = torch.softmax(outputs, dim=1)
+
+                    outputs = F.interpolate(outputs, labels.shape[-2:], mode='bilinear', align_corners=False)
+                    
+                    preds = outputs.detach().max(dim=1)[1].cpu().numpy()
+                    targets = labels.cpu().numpy()
+                    self.metrics.update(targets, preds)
+                        
             score = self.metrics.get_results()
         return score
 
@@ -525,14 +621,49 @@ class Traineracil(object):
         self.model= self.air_model  # Overwrite self.model with ACIL model
         # print(self.model)
 
+    def get_pseudo_labels(self, images, labels):
+        with torch.no_grad():
+            
+            images = images.to(self.device, dtype=torch.float32, non_blocking=True)
+            labels = labels.to(self.device, dtype=torch.long, non_blocking=True)
+            
+            outputs= self.model_prev(images)
+            # print("outputs.shape",outputs.shape)
+
+            if self.loss_type == 'bce_loss':
+                outputs = torch.sigmoid(outputs)
+            else:
+                outputs = torch.softmax(outputs, dim=1)
+            outputs=outputs.permute(0,3,1,2)
+            outputs = F.interpolate(outputs, labels.shape[-2:], mode='bilinear', align_corners=False)
+
+            pred_scores, pred_labels = torch.max(outputs, dim=1)
+            pseudo_labels= torch.where(
+                (labels==0) & (pred_labels>0) & (pred_scores >= self.pseudo_thresh), 
+                pred_labels, 
+                labels)
+            return pseudo_labels
+        
 
     def incremental_learning(self,train_loader):
         self.model=self.model.to(self.device)
         self.model.eval()
-        for seq, (X, y, _) in enumerate(train_loader):
-            # 获取 y 中每个标签的值以及对应的个数
-            unique_labels, label_counts = torch.unique(y, return_counts=True)
+        if self.dataset=='cityscapes_domain':
+            for seq, (X, y) in enumerate(train_loader):
 
-            X, y = X.to(self.device), y.to(self.device)
-            self.model.fit(X, y)
+                X, y = X.to(self.device), y.to(self.device)
+
+                
+                self.model.fit(X, y)
+        else:
+            for seq, (X, y, _) in enumerate(train_loader):
+
+                X, y = X.to(self.device), y.to(self.device)
+                if (self.pseudo and self.curr_step > 0 and self.flag==True and self.setting!='sequential') or (self.pseudo and self.curr_step > 1 and self.setting!='sequential'):
+                    print("Pseudo Labeling")
+                    y=self.get_pseudo_labels(X, y)
+                
+                self.model.fit(X, y)            
         self.model.update()
+
+

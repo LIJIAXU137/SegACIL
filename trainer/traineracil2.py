@@ -52,9 +52,11 @@ class AIR(nn.Module):
     def feature_expansion(self, X):
         input=X
         X, _ = self.backbone(X)
+  
         X = F.interpolate(X, input.shape[-2:], mode='bilinear', align_corners=False)
         self.B,self.channle,self.H,self.W = X.shape
         X = X.view(self.B,self.channle,-1).permute(0,2,1) # B, H*W, C
+
         return self.buffer(X)# B, H*W, C-> B, H*W, buffer_size
     @torch.no_grad()
     def forward(self, X):
@@ -70,7 +72,7 @@ class AIR(nn.Module):
         # y = F.interpolate(y, size=(self.H, self.W), mode='nearest')
         y = y.long()
         self.analytic_linear.fit(X, y)
-    
+
     @torch.no_grad()
     def update(self):
         self.analytic_linear.update()

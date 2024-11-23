@@ -244,12 +244,7 @@ tasks_ade = {
 
 tasks_cityscapes_domain = {
     "offline": {0: list(range(21))},
-    "11-5":
-        {
-            0: list(range(11)),
-            1: [11, 12, 13, 14, 15],
-            2: [16, 17, 18, 19, 20],
-        },
+
     "11-5":
         {
             0: list(range(11)),

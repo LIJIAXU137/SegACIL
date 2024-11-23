@@ -29,6 +29,7 @@ def get_argparser():
     parser.add_argument("--step_size", type=int, default=10000)
     parser.add_argument("--crop_val", action='store_true', default=False,
                         help='crop validation (default: False)')
+    
     parser.add_argument("--batch_size", type=int, default=32,
                         help='batch size (default: 16)')
     parser.add_argument("--val_batch_size", type=int, default=2,
@@ -67,7 +68,7 @@ def get_argparser():
     parser.add_argument("--cil_step", type=int, default=0, help="cil step")
     parser.add_argument("--initial", action='store_true', help="initial training")
 
-    parser.add_argument("--buffer", type=int, default=16384, help="buffer size")
+    parser.add_argument("--buffer", type=int, default=4196, help="buffer size")
     
     parser.add_argument("--gamma", type=float, default=10, help="gamma value")
     parser.add_argument("--method", type=str, default='None', help="method value")

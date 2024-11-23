@@ -28,6 +28,8 @@ def get_dataset(opts):
         ])
     else:
         val_transform = et.ExtCompose([
+            et.ExtResize(opts.crop_size),
+            et.ExtCenterCrop(opts.crop_size),
             et.ExtToTensor(),
             et.ExtNormalize(mean=[0.485, 0.456, 0.406],
                             std=[0.229, 0.224, 0.225]),

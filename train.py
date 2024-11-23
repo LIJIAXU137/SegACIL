@@ -11,7 +11,6 @@ import network
 # from trainer.trainer2 import Trainer
 from trainer.trainer import Trainer
 from trainer.traineracil import Traineracil
-# from trainer.trainer_s import Trainer
 # from trainer.trainer_bg import Trainer # 不推测背景
 # from trainer.trainer_fb import Trainer # 冻结backbone
 # from trainer.trainer_pro import Trainer # 使用Prototype和MLP
